@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
-	//"strings"
+	"strings"
 	//"sort"
 	terminal "github.com/wayneashleyberry/terminal-dimensions"
 	"sync"
@@ -25,12 +25,9 @@ func check(e error) {
 }
 
 //func printIds(region string, wg *sync.WaitGroup) {
-func printIds(sess *session.Session, wg *sync.WaitGroup) {
+func printIds(sess *session.Session, wg *sync.WaitGroup, termwidth *int) {
 	defer wg.Done()
 
-	//svc := ec2.New(session.New())
-	//sess := session.Must(session.NewSession())
-	//svc := ec2.New(sess, aws.NewConfig().WithRegion(region))
 	svc := ec2.New(sess)
 
 	// Here we create an input that will filter any instances that aren't either
@@ -100,8 +97,16 @@ func printIds(sess *session.Session, wg *sync.WaitGroup) {
 	if len(data) > 0 {
 		table := tablewriter.NewWriter(os.Stdout)
 		// i-085c47623415b24f7 | MediaProd                        | 10.104.14.20  | c3.large  | None
+        // Maximum field lengths of all fields except Name is 72, so get the maximum Name size with the current term width:
+		//maxname := *termwidth - 72
+		maxname := *termwidth - 72 / 2
+		extenders := strings.Repeat(" ", maxname)
+		fmt.Println(extenders)
+		// table.SetHeader([]string{"Instance Id", extenders + "Name " + extenders, "Private IP", "Type", "Public IP"})
 		table.SetHeader([]string{"Instance Id", "Name", "Private IP", "Type", "Public IP"})
+		table.SetColWidth(33)
 		table.SetBorder(false)
+		table.SetAutoWrapText(false)
 		for _, v := range data {
 			table.Append(v)
 		}
@@ -129,6 +134,10 @@ func main() {
 
 	svc := ec2.New(sess)
 
+	// Get terminal width to pass into the routine
+	twidth, _ := terminal.Width()
+	var termwidth int = int(twidth)
+
 	// Iterate over every single stinking region to get a list of available
 	// ec2 instances
 	regions, err := svc.DescribeRegions(&ec2.DescribeRegionsInput{})
@@ -138,7 +147,7 @@ func main() {
 		wg.Add(1)
 		//fmt.Printf("Calling region %s\n", *region.RegionName)
 		//go printIds(*region.RegionName, &wg)
-		go printIds(sess.Copy(aws.NewConfig().WithRegion(*region.RegionName)), &wg)
+		go printIds(sess.Copy(aws.NewConfig().WithRegion(*region.RegionName)), &wg, &termwidth)
 		//sess.Copy(&aws.Config(Region: region.RegionName))
 	}
 	//	}
@@ -146,7 +155,6 @@ func main() {
 	// Allow the goroutines to finish printing
 	wg.Wait()
 
-	x, _ := terminal.Width()
-	y, _ := terminal.Height()
-	fmt.Printf("Terminal is %d wide and %d high", x, y)
+	//x, _ := terminal.Width()
+	//fmt.Printf("Terminal is %d wide and %d high", x, y)
 }
