@@ -14,6 +14,7 @@ import (
 	"runtime"
 	//"strings"
 	//"sort"
+	terminal "github.com/wayneashleyberry/terminal-dimensions"
 	"sync"
 )
 
@@ -49,10 +50,11 @@ func printIds(sess *session.Session, wg *sync.WaitGroup) {
 	resp, err := svc.DescribeInstances(params)
 	if err != nil {
 		fmt.Println("there was an error listing instances in", err.Error())
+		// i threw away the log package >_>
 		//log.Fatal(err.Error())
 	}
 
-	//data := [][]string{}
+	// What? Why 3? <_<
 	//data := make([][]string, 3)
 	data := make([][]string, 0)
 
@@ -94,10 +96,12 @@ func printIds(sess *session.Session, wg *sync.WaitGroup) {
 			//fmt.Sprintf(strings.Join(output_vals, "\t \n"))
 		}
 	}
-	//sort.Slice(data)
-	//fmt.Sprintf("%v", data)
+	// Don't output anything if the region is empty
 	if len(data) > 0 {
 		table := tablewriter.NewWriter(os.Stdout)
+		// i-085c47623415b24f7 | MediaProd                        | 10.104.14.20  | c3.large  | None
+		table.SetHeader([]string{"Instance Id", "Name", "Private IP", "Type", "Public IP"})
+		table.SetBorder(false)
 		for _, v := range data {
 			table.Append(v)
 		}
@@ -142,4 +146,7 @@ func main() {
 	// Allow the goroutines to finish printing
 	wg.Wait()
 
+	x, _ := terminal.Width()
+	y, _ := terminal.Height()
+	fmt.Printf("Terminal is %d wide and %d high", x, y)
 }
