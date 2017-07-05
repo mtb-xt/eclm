@@ -97,8 +97,17 @@ func printIds(sess *session.Session, wg *sync.WaitGroup) {
 
 		// Maximum field lengths of all fields except Name is 72, so get the maximum Name size with the current term width:
 		maxname := termwidth - 73
+		if maxname > 40 {
+
+			maxname = 40
+
+		}
+
 		table.SetHeader([]string{"Instance Id", "Name", "Private IP", "Type", "Public IP"})
 		table.SetBorder(false)
+		table.SetCenterSeparator(" ")
+		table.SetColumnSeparator(" ")
+		table.SetRowSeparator(" ")
 		table.SetAutoWrapText(false)
 		table.AppendBulk(data)
 		// Set Name column to calculated size
