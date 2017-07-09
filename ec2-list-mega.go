@@ -5,18 +5,22 @@ package main
 
 import (
 	"fmt"
+	"sort"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	//"github.com/olekukonko/tablewriter"
-	"github.com/mtb-xt/tablewriter"
 	"net/url"
 	"os"
 	"runtime"
+
+	"github.com/mtb-xt/tablewriter"
 	//"strings"
 	//"sort"
-	terminal "github.com/wayneashleyberry/terminal-dimensions"
 	"sync"
+
+	terminal "github.com/wayneashleyberry/terminal-dimensions"
 )
 
 func check(e error) {
@@ -91,6 +95,9 @@ func printIds(sess *session.Session, wg *sync.WaitGroup) {
 	}
 	// Don't output anything if the region is empty
 	if len(data) > 0 {
+		//fmt.Println(data)
+		sort.Sort(ByInstanceNameAsc(data))
+		//fmt.Println(data)
 		table := tablewriter.NewWriter(os.Stdout)
 		uinttermwidth, _ := terminal.Width()
 		var termwidth int = int(uinttermwidth)
@@ -98,9 +105,7 @@ func printIds(sess *session.Session, wg *sync.WaitGroup) {
 		// Maximum field lengths of all fields except Name is 72, so get the maximum Name size with the current term width:
 		maxname := termwidth - 73
 		if maxname > 40 {
-
 			maxname = 40
-
 		}
 
 		table.SetHeader([]string{"Instance Id", "Name", "Private IP", "Type", "Public IP"})
