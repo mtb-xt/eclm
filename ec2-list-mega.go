@@ -60,7 +60,7 @@ func printIds(sess *session.Session, wg *sync.WaitGroup) {
 
 	// Loop through the instances. They don't always have a name-tag so set it
 	// to None if we can't find anything.
-	for idx, _ := range resp.Reservations {
+	for idx := range resp.Reservations {
 		for _, inst := range resp.Reservations[idx].Instances {
 			// We need to see if the Name is one of the tags. It's not always
 			// present and not required in Ec2.
@@ -71,7 +71,7 @@ func printIds(sess *session.Session, wg *sync.WaitGroup) {
 				}
 			}
 
-			important_vals := []*string{
+			importantVals := []*string{
 				inst.InstanceId,
 				&name,
 				inst.PrivateIpAddress,
@@ -81,16 +81,16 @@ func printIds(sess *session.Session, wg *sync.WaitGroup) {
 
 			// Convert any nil value to a printable string in case it doesn't
 			// doesn't exist, which is the case with certain values
-			output_vals := []string{}
-			for _, val := range important_vals {
+			outputVals := []string{}
+			for _, val := range importantVals {
 				if val != nil {
-					output_vals = append(output_vals, *val)
+					outputVals = append(outputVals, *val)
 				} else {
-					output_vals = append(output_vals, "None")
+					outputVals = append(outputVals, "None")
 				}
 			}
 			// The values that we care about, in the order we want to print them
-			data = append(data, output_vals)
+			data = append(data, outputVals)
 		}
 	}
 	// Don't output anything if the region is empty
@@ -138,7 +138,7 @@ func main() {
 	// Make sure the config file exists
 	config := os.Getenv("HOME") + "/.aws/config"
 	if _, err := os.Stat(config); os.IsNotExist(err) {
-		fmt.Println("No config file found at: %s", config)
+		fmt.Printf("No config file found at: %s\n", config)
 		os.Exit(1)
 	}
 
