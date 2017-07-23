@@ -5,16 +5,22 @@ package main
 
 import (
 	"fmt"
+	"sort"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/olekukonko/tablewriter"
+	//"github.com/olekukonko/tablewriter"
 	"net/url"
 	"os"
 	"runtime"
+
+	"github.com/mtb-xt/tablewriter"
 	//"strings"
 	//"sort"
 	"sync"
+
+	terminal "github.com/wayneashleyberry/terminal-dimensions"
 )
 
 func check(e error) {
@@ -27,9 +33,6 @@ func check(e error) {
 func printIds(sess *session.Session, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	//svc := ec2.New(session.New())
-	//sess := session.Must(session.NewSession())
-	//svc := ec2.New(sess, aws.NewConfig().WithRegion(region))
 	svc := ec2.New(sess)
 
 	// Here we create an input that will filter any instances that aren't either
@@ -49,16 +52,15 @@ func printIds(sess *session.Session, wg *sync.WaitGroup) {
 	resp, err := svc.DescribeInstances(params)
 	if err != nil {
 		fmt.Println("there was an error listing instances in", err.Error())
+		// i threw away the log package >_>
 		//log.Fatal(err.Error())
 	}
 
-	//data := [][]string{}
-	//data := make([][]string, 3)
 	data := make([][]string, 0)
 
 	// Loop through the instances. They don't always have a name-tag so set it
 	// to None if we can't find anything.
-	for idx, _ := range resp.Reservations {
+	for idx := range resp.Reservations {
 		for _, inst := range resp.Reservations[idx].Instances {
 			// We need to see if the Name is one of the tags. It's not always
 			// present and not required in Ec2.
@@ -69,7 +71,7 @@ func printIds(sess *session.Session, wg *sync.WaitGroup) {
 				}
 			}
 
-			important_vals := []*string{
+			importantVals := []*string{
 				inst.InstanceId,
 				&name,
 				inst.PrivateIpAddress,
@@ -79,29 +81,48 @@ func printIds(sess *session.Session, wg *sync.WaitGroup) {
 
 			// Convert any nil value to a printable string in case it doesn't
 			// doesn't exist, which is the case with certain values
-			output_vals := []string{}
-			for _, val := range important_vals {
+			outputVals := []string{}
+			for _, val := range importantVals {
 				if val != nil {
-					output_vals = append(output_vals, *val)
+					outputVals = append(outputVals, *val)
 				} else {
-					output_vals = append(output_vals, "None")
+					outputVals = append(outputVals, "None")
 				}
 			}
 			// The values that we care about, in the order we want to print them
-			//fmt.Println(strings.Join(output_vals, " "))
-			data = append(data, output_vals)
-			//data[subidx] = output_vals
-			//fmt.Sprintf(strings.Join(output_vals, "\t \n"))
+			data = append(data, outputVals)
 		}
 	}
-	//sort.Slice(data)
-	//fmt.Sprintf("%v", data)
+	// Don't output anything if the region is empty
 	if len(data) > 0 {
+		//fmt.Println(data)
+		sort.Sort(ByInstanceNameAsc(data))
+		//fmt.Println(data)
 		table := tablewriter.NewWriter(os.Stdout)
-		for _, v := range data {
-			table.Append(v)
+		uinttermwidth, _ := terminal.Width()
+		var termwidth int = int(uinttermwidth)
+
+		// Maximum field lengths of all fields except Name is 72, so get the maximum Name size with the current term width:
+		maxname := termwidth - 73
+		if maxname > 40 {
+			maxname = 40
 		}
-		table.Render() // Send output_vals
+
+		table.SetHeader([]string{"Instance Id", "Name", "Private IP", "Type", "Public IP"})
+		table.SetBorder(false)
+		table.SetCenterSeparator(" ")
+		table.SetColumnSeparator(" ")
+		table.SetRowSeparator(" ")
+		table.SetAutoWrapText(false)
+		table.AppendBulk(data)
+		// Set Name column to calculated size
+		table.SetColMinWidth(1, maxname)
+		// Set IP and type columns to their maximum possible length
+		table.SetColMinWidth(2, 15)
+		table.SetColMinWidth(3, 10)
+
+		table.Render()
+
 	}
 
 }
@@ -117,7 +138,7 @@ func main() {
 	// Make sure the config file exists
 	config := os.Getenv("HOME") + "/.aws/config"
 	if _, err := os.Stat(config); os.IsNotExist(err) {
-		fmt.Println("No config file found at: %s", config)
+		fmt.Printf("No config file found at: %s\n", config)
 		os.Exit(1)
 	}
 
@@ -137,7 +158,7 @@ func main() {
 		go printIds(sess.Copy(aws.NewConfig().WithRegion(*region.RegionName)), &wg)
 		//sess.Copy(&aws.Config(Region: region.RegionName))
 	}
-	//	}
+	//  }
 
 	// Allow the goroutines to finish printing
 	wg.Wait()
